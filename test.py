@@ -39,19 +39,23 @@ metrics_col = db["healthmetrics"]
 llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", api_key=GOOGLE_API_KEY)
 
 # Pydantic models
+class RecommendationItem(BaseModel):
+    recommendation: str
+    rationale: str
+
 class Recommendations(BaseModel):
-    patient_recommendations: Optional[list[str]] = None
+    patient_recommendations: Optional[list[RecommendationItem]] = None
     diet_plan: Optional[dict] = None
     exercise_plan: Optional[dict] = None
     nutrition_targets: Optional[dict] = None
-    doctor_recommendations: Optional[list[str]] = None
+    doctor_recommendations: Optional[list[RecommendationItem]] = None
 
 class State(TypedDict):
     patient_data: dict
     sent_for: int
     risk_probabilities: dict
     recommendations: Recommendations
-    selected_patient_recommendations: list[str]
+    selected_patient_recommendations: list[RecommendationItem]
 
 # Helper functions
 def parse_probability(prob_str: str) -> float:
@@ -118,32 +122,67 @@ def generate_recommendations(state: State) -> dict:
 
     if sent_for == 0:
         instruction = (
-            "Provide up to five lifestyle and behavior change recommendations in 'patient_recommendations'.\n"
-            "Additionally, you MUST provide a diet plan tailored for Egyptian patients in 'diet_plan', which must be a dictionary with 'description' (string describing the diet, including Egyptian foods), 'calories' (integer, daily calorie target), and 'meals' (list of strings, example meals).\n"
-            "You MUST provide an exercise plan in 'exercise_plan', which must be a dictionary with 'type' (string, e.g., 'aerobic'), 'duration' (integer, minutes per session), 'frequency' (integer, sessions per week).\n"
-            "You MUST provide nutrition targets in 'nutrition_targets', which must be a dictionary with target values for relevant metrics, e.g., 'target_BMI', 'target_glucose', etc.\n"
-            "Set 'doctor_recommendations' to null.\n"
-            "**Critical Instruction:** Do NOT omit 'diet_plan', 'exercise_plan', or 'nutrition_targets'. These fields are required and must be populated with appropriate values based on the patient data.\n"
-            "Here’s an example of the expected JSON output:\n"
+            "Generate a JSON object with the following structure:\n"
             "{\n"
-            "  \"patient_recommendations\": [\"Increase water intake\", \"Reduce sugar consumption\"],\n"
-            "  \"diet_plan\": {\"description\": \"A balanced diet with Egyptian staples like ful medames and koshari\", \"calories\": 2000, \"meals\": [\"Ful medames with bread\", \"Grilled chicken with rice\"]},\n"
-            "  \"exercise_plan\": {\"type\": \"aerobic\", \"duration\": 30, \"frequency\": 5},\n"
-            "  \"nutrition_targets\": {\"target_BMI\": 25.0, \"target_glucose\": 100},\n"
+            "  \"patient_recommendations\": [\n"
+            "    {\"recommendation\": \"Specific lifestyle change or behavior modification\", \"rationale\": \"Simple explanation for the patient\"},\n"
+            "    ...\n"
+            "  ],\n"
+            "  \"diet_plan\": {\n"
+            "    \"description\": \"Detailed diet description, including Egyptian foods\",\n"
+            "    \"calories\": integer,\n"
+            "    \"macronutrients\": {\"carbs\": percentage, \"protein\": percentage, \"fat\": percentage},\n"
+            "    \"meals\": [\"Example meal 1\", \"Example meal 2\", ...]\n"
+            "  },\n"
+            "  \"exercise_plan\": {\n"
+            "    \"type\": \"e.g., aerobic\",\n"
+            "    \"duration\": integer,\n"
+            "    \"frequency\": integer,\n"
+            "    \"intensity\": \"low/moderate/high\"\n"
+            "  },\n"
+            "  \"nutrition_targets\": {\n"
+            "    \"target_BMI\": float,\n"
+            "    \"target_glucose\": integer,\n"
+            "    \"target_blood_pressure\": \"systolic/diastolic\"\n"
+            "  },\n"
             "  \"doctor_recommendations\": null\n"
-            "}"
+            "}\n"
+            "Provide up to five patient recommendations with rationales that are easy to understand. "
+            "Ensure the diet plan includes Egyptian cultural foods and macronutrient percentages summing to 100%. "
+            "The exercise plan should match the patient’s age and health status, specifying intensity. "
+            "Nutrition targets should be realistic based on patient data."
         )
     elif sent_for == 1:
         instruction = (
-            "Provide up to three medical action recommendations for a cardiologist in 'doctor_recommendations'. "
-            "Notify about comorbid conditions (e.g., prediabetes) and caution against medications that may worsen those conditions.\n"
-            "Set 'patient_recommendations', 'diet_plan', 'exercise_plan', 'nutrition_targets' to null."
+            "Generate a JSON object with the following structure:\n"
+            "{\n"
+            "  \"patient_recommendations\": null,\n"
+            "  \"diet_plan\": null,\n"
+            "  \"exercise_plan\": null,\n"
+            "  \"nutrition_targets\": null,\n"
+            "  \"doctor_recommendations\": [\n"
+            "    {\"recommendation\": \"Specific medical action or intervention\", \"rationale\": \"Evidence-based justification\"},\n"
+            "    ...\n"
+            "  ]\n"
+            "}\n"
+            "Provide up to three detailed recommendations for a cardiologist, each with an evidence-based rationale. "
+            "If the patient has diabetes or high diabetes risk, include specific precautions or contraindications for medications (e.g., beta-blockers or diuretics) that could worsen glycemic control or diabetic complications."
         )
     elif sent_for == 2:
         instruction = (
-            "Provide up to three medical action recommendations for an endocrinologist in 'doctor_recommendations'. "
-            "Notify about comorbid conditions (e.g., CVD risk) and caution against medications that may worsen those conditions.\n"
-            "Set 'patient_recommendations', 'diet_plan', 'exercise_plan', 'nutrition_targets' to null."
+            "Generate a JSON object with the following structure:\n"
+            "{\n"
+            "  \"patient_recommendations\": null,\n"
+            "  \"diet_plan\": null,\n"
+            "  \"exercise_plan\": null,\n"
+            "  \"nutrition_targets\": null,\n"
+            "  \"doctor_recommendations\": [\n"
+            "    {\"recommendation\": \"Specific medical action or intervention\", \"rationale\": \"Evidence-based justification\"},\n"
+            "    ...\n"
+            "  ]\n"
+            "}\n"
+            "Provide up to three detailed recommendations for an endocrinologist, each with an evidence-based rationale. "
+            "If the patient has CVD or high CVD risk, include specific precautions or contraindications for medications (e.g., sulfonylureas or insulin adjustments) that could worsen cardiovascular health."
         )
     else:
         raise HTTPException(status_code=400, detail='Invalid sent_for value')
@@ -154,27 +193,22 @@ def generate_recommendations(state: State) -> dict:
         f"Diabetes Risk: {probs['Diabetes']}\n"
         f"CVD Risk: {probs['Heart Disease']}\n\n"
         f"{instruction}\n"
-        f"Return only the JSON object, without any additional text or explanations."
+        f"Return only the JSON object, without additional text."
     )
     response = llm.invoke(prompt)
     try:
-        # Extract JSON if embedded in text
         json_match = re.search(r'\{.*\}', response.content, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(0)
-        else:
-            json_str = response.content
+        json_str = json_match.group(0) if json_match else response.content
         recs_dict = json.loads(json_str)
         recs = Recommendations(**recs_dict)
     except json.JSONDecodeError:
-        raise ValueError("Failed to parse JSON from the language model response.")
+        raise ValueError("Failed to parse JSON from LLM response.")
     except Exception as e:
         raise ValueError(f"Error parsing recommendations: {str(e)}")
 
-    # Ensure required fields are not null when sent_for == 0
     if sent_for == 0:
         if not recs.diet_plan or not recs.exercise_plan or not recs.nutrition_targets:
-            raise ValueError("Diet plan, exercise plan, or nutrition targets are missing in the recommendations.")
+            raise ValueError("Diet plan, exercise plan, or nutrition targets are missing.")
 
     return {'recommendations': recs}
 
@@ -186,7 +220,7 @@ def evaluate_recommendations(state: State) -> dict:
     original = state['risk_probabilities']
     selected = []
     for rec in state['recommendations'].patient_recommendations or []:
-        kind = classify_recommendation(rec)
+        kind = classify_recommendation(rec.recommendation)
         if kind != 'Other':
             adj = adjust_metrics(state['patient_data'], kind)
             new_probs = get_risk_probabilities(adj)
@@ -202,14 +236,12 @@ def output_results(state: State) -> dict:
         'cvd_probability': probs['Heart Disease']
     }
     if sent_for == 0:
-        result['patient_recommendations'] = state['selected_patient_recommendations'][:3]
+        result['patient_recommendations'] = [rec.dict() for rec in state['selected_patient_recommendations'][:3]]
         result['diet_plan'] = state['recommendations'].diet_plan
         result['exercise_plan'] = state['recommendations'].exercise_plan
         result['nutrition_targets'] = state['recommendations'].nutrition_targets
-    elif sent_for == 1:
-        result['doctor_recommendations'] = state['recommendations'].doctor_recommendations[:3]
-    elif sent_for == 2:
-        result['doctor_recommendations'] = state['recommendations'].doctor_recommendations[:3]
+    elif sent_for == 1 or sent_for == 2:
+        result['doctor_recommendations'] = [rec.dict() for rec in state['recommendations'].doctor_recommendations[:3]] if state['recommendations'].doctor_recommendations else []
     return result
 
 # Build and compile state graph
@@ -232,13 +264,11 @@ async def get_recommendations(patient_id: str, sent_for: Optional[int] = 0):
         oid = ObjectId(patient_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid patient ID format")
-    print(oid)
 
     patient = patients_col.find_one({"_id": oid})
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
-    # Fetch latest health metrics
     metrics = list(
         metrics_col.find({"patientId": patient_id})
                    .sort([('createdAt', -1)])
@@ -247,7 +277,6 @@ async def get_recommendations(patient_id: str, sent_for: Optional[int] = 0):
     if metrics:
         patient.update(metrics[0])
 
-    # Prepare data for model
     patient_data = {
         "Age": (date.today() - patient['birthDate'].date()).days // 365,
         "Blood_Pressure": patient.get('bloodPressure'),
@@ -263,8 +292,7 @@ async def get_recommendations(patient_id: str, sent_for: Optional[int] = 0):
         "gender": 'M' if patient['gender'].lower().startswith('m') else 'F'
     }
 
-    # Run workflow
-    initial_state = {'patient_data': patient_data, 'sent_for': sent_for } 
+    initial_state = {'patient_data': patient_data, 'sent_for': sent_for}
     result = await graph.ainvoke(initial_state)
     return result
 

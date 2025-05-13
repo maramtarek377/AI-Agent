@@ -1,17 +1,25 @@
 [project]
-name = "my-langgraph-project"
+name = "agent-model"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115.12",
-    "ipykernel>=6.29.5",
+    "fastapi[standard]>=0.115.12",
+    "flask>=3.1.0",
     "langchain-google-genai>=2.1.4",
-    "langchain-google-vertexai>=2.0.21",
-    "langchain[anthropic]>=0.3.25",
-    "langgraph>=0.4.1",
-    "pgmpy>=1.0.0",
+    "langgraph>=0.4.3",
+    "pydantic>=2.11.4",
+    "pymongo>=4.12.1",
     "python-dotenv>=1.1.0",
-    "requests",
+    "requests>=2.32.3",
+    "uvicorn>=0.34.2",
+]
+
+[tool.uv.workspace]
+members = [
+    "my-pkg",
+    "my-lib",
+    "my-ext",
+    "my-bare",
 ]
