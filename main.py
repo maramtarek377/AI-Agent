@@ -135,10 +135,10 @@ def generate_recommendations(state: State) -> dict:
         )
     elif sent_for == 1:
         instruction = (
-            "Provide up to three medical action recommendations for a cardiologist in 'doctor_recommendations'. "
+       "Provide up to three medical action recommendations for a cardiologist in 'doctor_recommendations'. "
             "Notify about comorbid conditions (e.g., prediabetes) and caution against medications that may worsen those conditions.\n"
             "Set 'patient_recommendations', 'diet_plan', 'exercise_plan', 'nutrition_targets' to null."
-        )
+    )
     elif sent_for == 2:
         instruction = (
             "Provide up to three medical action recommendations for an endocrinologist in 'doctor_recommendations'. "
